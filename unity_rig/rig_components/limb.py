@@ -282,8 +282,13 @@ def snap_ik_to_fk(arm_obj, limb_key):
         pb_ik.matrix = pb_fk_end.matrix.copy()
 
     if pb_pole and pb_fk_lower:
+        # pb_fk_lower.head is in armature (pose) space, while .location is a
+        # local channel relative to the pole's rest pose and parent. Assign
+        # through the pose-space matrix so Blender converts spaces for us.
         pole_offset = limb["pole_offset"]
-        pb_pole.location = pb_fk_lower.head + pole_offset
+        mat = pb_pole.matrix.copy()
+        mat.translation = pb_fk_lower.head + pole_offset
+        pb_pole.matrix = mat
 
 
 def snap_fk_to_ik(arm_obj, limb_key):

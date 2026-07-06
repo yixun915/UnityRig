@@ -218,12 +218,16 @@ def _add_finger_curl_driver(arm_obj, ctrl_bone, curl_bone, fist_bone, max_angle)
     Expression: (curl + fist - curl*fist) * max_angle
     This blends both inputs without exceeding the max.
     """
-    data_path = f'pose.bones["{ctrl_bone}"].rotation_euler[0]'
-
-    try:
-        fcurve = arm_obj.driver_add(data_path)
-    except TypeError:
+    pb = arm_obj.pose.bones.get(ctrl_bone)
+    if pb is None:
         return
+    # Drivers target rotation_euler, which only affects the pose in an
+    # Euler rotation mode (default is QUATERNION).
+    pb.rotation_mode = 'XYZ'
+
+    # The array index must be passed separately, not embedded in the path.
+    data_path = f'pose.bones["{ctrl_bone}"].rotation_euler'
+    fcurve = arm_obj.driver_add(data_path, 0)
 
     driver = fcurve.driver
     driver.type = 'SCRIPTED'
@@ -258,12 +262,14 @@ def _add_finger_spread_driver(arm_obj, ctrl_bone, spread_bone, finger_name, side
     x_sign = 1 if side == "Left" else -1
     max_spread = math.radians(20) * amount * x_sign
 
-    data_path = f'pose.bones["{ctrl_bone}"].rotation_euler[2]'
-
-    try:
-        fcurve = arm_obj.driver_add(data_path)
-    except TypeError:
+    pb = arm_obj.pose.bones.get(ctrl_bone)
+    if pb is None:
         return
+    pb.rotation_mode = 'XYZ'
+
+    # The array index must be passed separately, not embedded in the path.
+    data_path = f'pose.bones["{ctrl_bone}"].rotation_euler'
+    fcurve = arm_obj.driver_add(data_path, 2)
 
     driver = fcurve.driver
     driver.type = 'SCRIPTED'

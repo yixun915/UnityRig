@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Unity Rig",
     "author": "Mike Simon",
-    "version": (1, 0, 0),
+    "version": (1, 0, 2),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Unity Rig",
     "description": "Create Unity Humanoid-compatible rigs and convert Rigify rigs for Unity export",
