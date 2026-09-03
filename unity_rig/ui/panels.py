@@ -149,12 +149,75 @@ class UNITYRIG_PT_ikfk(bpy.types.Panel):
             op.bone_name = bname
 
 
+class UNITYRIG_PT_hands(bpy.types.Panel):
+    """Fist / spread presets and per-finger curl sliders."""
+    bl_label = "Hands"
+    bl_idname = "UNITYRIG_PT_hands"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Unity Rig"
+    bl_parent_id = "UNITYRIG_PT_main"
+
+    FINGERS = ("Thumb", "Index", "Middle", "Ring", "Little")
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return (obj and obj.type == 'ARMATURE'
+                and obj.pose.bones.get("CTRL-Fist-Left") is not None)
+
+    def _side(self, layout, obj, side, label):
+        box = layout.box()
+        box.label(text=label)
+
+        row = box.row(align=True)
+        for pose, text in (('OPEN', "Open"), ('RELAX', "Relax"), ('FIST', "Fist")):
+            op = row.operator("unity_rig.hand_pose", text=text)
+            op.side = side
+            op.pose = pose
+        row = box.row(align=True)
+        for pose, text in (('PINCH', "Pinch"), ('SPREAD', "Spread")):
+            op = row.operator("unity_rig.hand_pose", text=text)
+            op.side = side
+            op.pose = pose
+
+        col = box.column(align=True)
+        for bone_name, key, text in ((f"CTRL-Fist-{side}", "fist", "Fist"),
+                                     (f"CTRL-Spread-{side}", "spread", "Spread")):
+            pb = obj.pose.bones.get(bone_name)
+            if pb is not None and key in pb:
+                col.prop(pb, '["%s"]' % key, text=text, slider=True)
+
+        header, body = box.panel(idname="unity_rig_fingers_" + side, default_closed=True)
+        header.label(text="Per Finger")
+        if body is not None:
+            col = body.column(align=True)
+            for finger in self.FINGERS:
+                pb = obj.pose.bones.get("CTRL-Curl-%s%s" % (side, finger))
+                if pb is not None and "curl" in pb:
+                    col.prop(pb, '["curl"]', text=finger, slider=True)
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.active_object
+
+        row = layout.row(align=True)
+        for pose, text in (('OPEN', "Open Both"), ('FIST', "Fist Both")):
+            op = row.operator("unity_rig.hand_pose", text=text)
+            op.side = 'BOTH'
+            op.pose = pose
+
+        self._side(layout, obj, "Left", "Left Hand")
+        self._side(layout, obj, "Right", "Right Hand")
+
+
 classes = (
     UNITYRIG_PT_main,
     UNITYRIG_PT_create,
     UNITYRIG_PT_convert,
     UNITYRIG_PT_export,
     UNITYRIG_PT_ikfk,
+    UNITYRIG_PT_hands,
 )
 
 

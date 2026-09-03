@@ -142,7 +142,11 @@ def setup_hand_constraints(arm_obj, side):
             if pb is None:
                 continue
 
-            max_angle = math.radians(90) * weight
+            # Negative: with the finger bones this add-on authors itself, a
+            # positive X rotation bends the finger back over the knuckle. The
+            # sign is a property of the rolls in _FINGER_DEFS, not of the side,
+            # so both hands use the same one.
+            max_angle = math.radians(-90) * weight
             _add_finger_curl_driver(
                 arm_obj, ctrl_name,
                 curl_bone=curl_name,
