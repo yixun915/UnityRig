@@ -101,11 +101,11 @@ class UNITYRIG_PT_ikfk(bpy.types.Panel):
         layout = self.layout
         obj = context.active_object
 
-        for limb_label, ctrl_bone_name in [
-            ("Left Arm",  "CTRL-IK-LeftHand"),
-            ("Right Arm", "CTRL-IK-RightHand"),
-            ("Left Leg",  "CTRL-IK-LeftFoot"),
-            ("Right Leg", "CTRL-IK-RightFoot"),
+        for limb_label, ctrl_bone_name, pole_bone_name in [
+            ("Left Arm",  "CTRL-IK-LeftHand",  "CTRL-Pole-LeftElbow"),
+            ("Right Arm", "CTRL-IK-RightHand", "CTRL-Pole-RightElbow"),
+            ("Left Leg",  "CTRL-IK-LeftFoot",  "CTRL-Pole-LeftKnee"),
+            ("Right Leg", "CTRL-IK-RightFoot", "CTRL-Pole-RightKnee"),
         ]:
             pb = obj.pose.bones.get(ctrl_bone_name)
             if pb is None:
@@ -116,11 +116,34 @@ class UNITYRIG_PT_ikfk(bpy.types.Panel):
             if "ik_fk_blend" in pb:
                 row.prop(pb, '["ik_fk_blend"]', text="FK" if pb["ik_fk_blend"] > 0.5 else "IK",
                          slider=True)
+            # Hunting for these two controls in a 156-bone rig is the slow part of
+            # posing, so offer them directly. Shift-click adds to the selection.
+            row = box.row(align=True)
+            active = obj.data.bones.active
+            sub = row.row(align=True)
+            sub.depress = active is not None and active.name == ctrl_bone_name
+            op = sub.operator("unity_rig.select_bone", text="IK", icon='CON_KINEMATIC')
+            op.bone_name = ctrl_bone_name
+            sub = row.row(align=True)
+            sub.enabled = obj.pose.bones.get(pole_bone_name) is not None
+            sub.depress = active is not None and active.name == pole_bone_name
+            op = sub.operator("unity_rig.select_bone", text="Pole", icon='EMPTY_AXIS')
+            op.bone_name = pole_bone_name
+
             row = box.row(align=True)
             op = row.operator("unity_rig.snap_ik_to_fk", text="Snap IK→FK")
             op.limb_bone = ctrl_bone_name
             op = row.operator("unity_rig.snap_fk_to_ik", text="Snap FK→IK")
             op.limb_bone = ctrl_bone_name
+
+        layout.separator()
+        row = layout.row(align=True)
+        for label, bname in [("Root", "CTRL-Root"), ("Hips", "CTRL-Hips"),
+                             ("Chest", "CTRL-Chest"), ("Head", "CTRL-Head")]:
+            sub = row.row(align=True)
+            sub.enabled = obj.pose.bones.get(bname) is not None
+            op = sub.operator("unity_rig.select_bone", text=label)
+            op.bone_name = bname
 
 
 classes = (
