@@ -133,6 +133,46 @@ def create_limb_bones(arm_obj, limb_key):
     return assignments
 
 
+def _signed_angle(vec_u, vec_v, normal):
+    """Angle from vec_u to vec_v, signed around `normal`."""
+    a = vec_u.angle(vec_v)
+    if vec_u.cross(vec_v).angle(normal) > 1.0:
+        a = -a
+    return a
+
+
+def solve_pole_angle(arm_obj, root_bone_name, end_bone_name, pole_bone_name):
+    """Compute the pole angle that keeps the IK chain in its rest position.
+
+    Hard-coding +/-90 degrees only works if the bone rolls happen to match a
+    particular convention. Deriving it from the actual rest geometry makes the
+    solver agree with however the user rolled their bones.
+    """
+    bones = arm_obj.data.bones
+    root_b = bones.get(root_bone_name)
+    end_b = bones.get(end_bone_name)
+    pole_b = bones.get(pole_bone_name)
+    if not (root_b and end_b and pole_b):
+        return 0.0
+
+    root_head = root_b.head_local
+    chain_dir = end_b.tail_local - root_head
+    to_pole = pole_b.head_local - root_head
+    if chain_dir.length < 1e-6 or to_pole.length < 1e-6:
+        return 0.0
+
+    pole_normal = chain_dir.cross(to_pole)
+    bone_dir = root_b.tail_local - root_head
+    if pole_normal.length < 1e-6 or bone_dir.length < 1e-6:
+        return 0.0
+
+    projected = pole_normal.cross(bone_dir)
+    if projected.length < 1e-6:
+        return 0.0
+
+    return _signed_angle(root_b.x_axis, projected, bone_dir)
+
+
 def setup_limb_constraints(arm_obj, limb_key, ik_fk_default='IK'):
     """Set up IK/FK constraints and drivers for a limb in POSE mode.
 
@@ -162,7 +202,8 @@ def setup_limb_constraints(arm_obj, limb_key, ik_fk_default='IK'):
             )
 
     # --- IK constraint on MCH chain end ---
-    pole_angle = math.radians(-90) if is_arm else math.radians(90)
+    mch_root = f"MCH-IK-{upper_name}"
+    pole_angle = solve_pole_angle(arm_obj, mch_root, mch_end, pole_target)
 
     add_ik_constraint(
         arm_obj, mch_end, target_bone=ik_target,

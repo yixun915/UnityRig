@@ -139,6 +139,14 @@ def add_ik_constraint(armature_obj, bone_name, target_bone=None,
         con.target = armature_obj
         con.subtarget = target_bone
     con.chain_count = chain_count
+    # The IK target sits at the end bone's HEAD (wrist / ankle), so the solver
+    # must aim for the head rather than the tail; aiming at the tail drags the
+    # whole limb back by one bone length. Stretch stays off because Unity's
+    # Humanoid rig rejects scaled bones. Both match Blender's RNA defaults, but
+    # are set explicitly so a stray manual toggle is corrected on the next
+    # Generate instead of silently breaking the limb.
+    con.use_tail = False
+    con.use_stretch = False
     if pole_target_bone:
         con.pole_target = armature_obj
         con.pole_subtarget = pole_target_bone
