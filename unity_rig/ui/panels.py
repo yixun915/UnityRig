@@ -100,6 +100,8 @@ class UNITYRIG_PT_ikfk(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         obj = context.active_object
+        active = obj.data.bones.active
+        active_name = active.name if active else ""
 
         for limb_label, ctrl_bone_name, pole_bone_name in [
             ("Left Arm",  "CTRL-IK-LeftHand",  "CTRL-Pole-LeftElbow"),
@@ -119,15 +121,15 @@ class UNITYRIG_PT_ikfk(bpy.types.Panel):
             # Hunting for these two controls in a 156-bone rig is the slow part of
             # posing, so offer them directly. Shift-click adds to the selection.
             row = box.row(align=True)
-            active = obj.data.bones.active
-            sub = row.row(align=True)
-            sub.depress = active is not None and active.name == ctrl_bone_name
-            op = sub.operator("unity_rig.select_bone", text="IK", icon='CON_KINEMATIC')
+            op = row.operator("unity_rig.select_bone", text="IK",
+                              icon='CON_KINEMATIC',
+                              depress=(active_name == ctrl_bone_name))
             op.bone_name = ctrl_bone_name
             sub = row.row(align=True)
             sub.enabled = obj.pose.bones.get(pole_bone_name) is not None
-            sub.depress = active is not None and active.name == pole_bone_name
-            op = sub.operator("unity_rig.select_bone", text="Pole", icon='EMPTY_AXIS')
+            op = sub.operator("unity_rig.select_bone", text="Pole",
+                              icon='EMPTY_AXIS',
+                              depress=(active_name == pole_bone_name))
             op.bone_name = pole_bone_name
 
             row = box.row(align=True)
@@ -142,7 +144,8 @@ class UNITYRIG_PT_ikfk(bpy.types.Panel):
                              ("Chest", "CTRL-Chest"), ("Head", "CTRL-Head")]:
             sub = row.row(align=True)
             sub.enabled = obj.pose.bones.get(bname) is not None
-            op = sub.operator("unity_rig.select_bone", text=label)
+            op = sub.operator("unity_rig.select_bone", text=label,
+                              depress=(active_name == bname))
             op.bone_name = bname
 
 
