@@ -254,7 +254,10 @@ LIMB_DEFS = {
         "end":   "LeftHand",
         "pole_offset": Vector((0, 0.4, 0)),   # elbow pole behind
         "ik_offset": Vector((0, 0, 0)),
-        "chain_length": 3,
+        # Paired with use_tail=False: Blender starts the chain at the parent of the
+        # constrained bone, so 2 here covers lower+upper limb and stops before the
+        # shoulder / hips. Using 3 reaches one bone too far and drags the torso.
+        "chain_length": 2,
     },
     "arm_R": {
         "side": "Right",
@@ -263,7 +266,10 @@ LIMB_DEFS = {
         "end":   "RightHand",
         "pole_offset": Vector((0, 0.4, 0)),
         "ik_offset": Vector((0, 0, 0)),
-        "chain_length": 3,
+        # Paired with use_tail=False: Blender starts the chain at the parent of the
+        # constrained bone, so 2 here covers lower+upper limb and stops before the
+        # shoulder / hips. Using 3 reaches one bone too far and drags the torso.
+        "chain_length": 2,
     },
     "leg_L": {
         "side": "Left",
@@ -272,7 +278,10 @@ LIMB_DEFS = {
         "end":   "LeftFoot",
         "pole_offset": Vector((0, -0.4, 0)),  # knee pole in front
         "ik_offset": Vector((0, 0, 0)),
-        "chain_length": 3,
+        # Paired with use_tail=False: Blender starts the chain at the parent of the
+        # constrained bone, so 2 here covers lower+upper limb and stops before the
+        # shoulder / hips. Using 3 reaches one bone too far and drags the torso.
+        "chain_length": 2,
     },
     "leg_R": {
         "side": "Right",
@@ -281,7 +290,10 @@ LIMB_DEFS = {
         "end":   "RightFoot",
         "pole_offset": Vector((0, -0.4, 0)),
         "ik_offset": Vector((0, 0, 0)),
-        "chain_length": 3,
+        # Paired with use_tail=False: Blender starts the chain at the parent of the
+        # constrained bone, so 2 here covers lower+upper limb and stops before the
+        # shoulder / hips. Using 3 reaches one bone too far and drags the torso.
+        "chain_length": 2,
     },
 }
 

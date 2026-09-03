@@ -1,5 +1,6 @@
 """IK/FK limb rig component for arms and legs."""
 
+import bpy
 import math
 from mathutils import Vector
 from ..bone_data import LIMB_DEFS
@@ -133,44 +134,56 @@ def create_limb_bones(arm_obj, limb_key):
     return assignments
 
 
-def _signed_angle(vec_u, vec_v, normal):
-    """Angle from vec_u to vec_v, signed around `normal`."""
-    a = vec_u.angle(vec_v)
-    if vec_u.cross(vec_v).angle(normal) > 1.0:
-        a = -a
-    return a
+def solve_pole_angle(arm_obj, ik_bone_name, chain_bone_names,
+                     coarse_step=5.0, fine_span=6.0, fine_step=0.05):
+    """Find the pole angle that leaves the IK chain in its rest orientation.
 
-
-def solve_pole_angle(arm_obj, root_bone_name, end_bone_name, pole_bone_name):
-    """Compute the pole angle that keeps the IK chain in its rest position.
-
-    Hard-coding +/-90 degrees only works if the bone rolls happen to match a
-    particular convention. Deriving it from the actual rest geometry makes the
-    solver agree with however the user rolled their bones.
+    A closed-form derivation has to assume a particular bone-roll convention and
+    limb orientation; it agrees with the solver for some limbs and is 90 or 180
+    degrees out for others. Measuring instead makes no assumptions: sweep the
+    pole angle and keep whichever value leaves the chain closest to rest. Costs
+    roughly half a second per limb and works for any proportions or roll scheme.
     """
+    pb = arm_obj.pose.bones.get(ik_bone_name)
+    if pb is None:
+        return 0.0
+    con = next((c for c in pb.constraints if c.type == 'IK'), None)
+    if con is None or not con.pole_subtarget:
+        return 0.0
+
     bones = arm_obj.data.bones
-    root_b = bones.get(root_bone_name)
-    end_b = bones.get(end_bone_name)
-    pole_b = bones.get(pole_bone_name)
-    if not (root_b and end_b and pole_b):
+    chain = [n for n in chain_bone_names if n in bones]
+    if not chain:
         return 0.0
+    rest_q = {n: bones[n].matrix_local.to_quaternion() for n in chain}
 
-    root_head = root_b.head_local
-    chain_dir = end_b.tail_local - root_head
-    to_pole = pole_b.head_local - root_head
-    if chain_dir.length < 1e-6 or to_pole.length < 1e-6:
-        return 0.0
+    def deviation():
+        bpy.context.view_layer.update()
+        ev = arm_obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        return sum(rest_q[n].rotation_difference(
+            ev.pose.bones[n].matrix.to_quaternion()).angle for n in chain)
 
-    pole_normal = chain_dir.cross(to_pole)
-    bone_dir = root_b.tail_local - root_head
-    if pole_normal.length < 1e-6 or bone_dir.length < 1e-6:
-        return 0.0
+    original = con.pole_angle
+    best_a, best_e = None, None
 
-    projected = pole_normal.cross(bone_dir)
-    if projected.length < 1e-6:
-        return 0.0
+    d = -180.0
+    while d <= 180.0:
+        con.pole_angle = math.radians(d)
+        e = deviation()
+        if best_e is None or e < best_e:
+            best_a, best_e = d, e
+        d += coarse_step
 
-    return _signed_angle(root_b.x_axis, projected, bone_dir)
+    d = best_a - fine_span
+    while d <= best_a + fine_span:
+        con.pole_angle = math.radians(d)
+        e = deviation()
+        if e < best_e:
+            best_a, best_e = d, e
+        d += fine_step
+
+    con.pole_angle = original
+    return math.radians(best_a)
 
 
 def setup_limb_constraints(arm_obj, limb_key, ik_fk_default='IK'):
@@ -202,8 +215,7 @@ def setup_limb_constraints(arm_obj, limb_key, ik_fk_default='IK'):
             )
 
     # --- IK constraint on MCH chain end ---
-    mch_root = f"MCH-IK-{upper_name}"
-    pole_angle = solve_pole_angle(arm_obj, mch_root, mch_end, pole_target)
+    pole_angle = 0.0   # solved after the constraint exists
 
     add_ik_constraint(
         arm_obj, mch_end, target_bone=ik_target,
@@ -212,6 +224,15 @@ def setup_limb_constraints(arm_obj, limb_key, ik_fk_default='IK'):
         pole_angle=pole_angle,
         name="IK",
     )
+
+    # The solver needs the finished constraint to measure against, so the
+    # pole angle is calibrated here rather than passed in above.
+    ik_chain = [f"MCH-IK-{upper_name}", f"MCH-IK-{lower_name}"]
+    solved = solve_pole_angle(arm_obj, mch_end, ik_chain)
+    ik_con = next((c for c in arm_obj.pose.bones[mch_end].constraints
+                   if c.type == 'IK'), None)
+    if ik_con is not None:
+        ik_con.pole_angle = solved
 
     # --- IK/FK blend property on the IK target bone ---
     default_val = 0.0 if ik_fk_default == 'IK' else 1.0
